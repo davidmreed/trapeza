@@ -3,6 +3,7 @@
 #  trapeza.py
 #  
 #  Copyright 2013-2014 David Reed <david@ktema.org>
+#  This file is available under the terms of the MIT License.
 #
 
 import os, csv, itertools
