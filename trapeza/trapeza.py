@@ -6,7 +6,12 @@
 #  This file is available under the terms of the MIT License.
 #
 
-import os, csv, itertools
+import os, itertools
+
+try:
+    import unicodecsv as csv
+except:
+    import csv
 
 class Record(object):
     def __init__(self, values, primary_key = None, input_line = None):
