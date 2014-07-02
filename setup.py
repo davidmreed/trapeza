@@ -12,5 +12,5 @@ setup(
     author_email="david@ktema.org",
     packages=["trapeza"],
     license="MIT",
-    install_requires=["Python >= 2.7"]
+    install_requires=["Python >= 2.7"],
     long_description=open("README.txt").read())
