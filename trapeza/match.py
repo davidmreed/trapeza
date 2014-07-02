@@ -26,13 +26,20 @@ class Mapping(object):
         self.compare = compare
         self.points = points
         self.strip = strip
+        
+    def __str__(self):
+    	return "trapeza.Mapping: {0} to {1} using comparison {2} for {3} points.".format(self.key, self.master_key, self.compare, self.points)
     
     def compare_records(self, master, incoming):
         if self.master_key not in master.values or self.key not in incoming.values:
-            raise Exception, "Mapping {} specifies a key that does not exist in one or more records.".format(self)
+            raise Exception, "Mapping {0} specifies a key that does not exist in one or more records.".format(self)
         
         master_value = master.values[self.master_key].strip().strip("\"'") if self.strip else master.values[self.master_key]
-        incoming_value = incoming.values[self.key].strip().strip("\"'") if self.strip else incoming.values[self.key]        
+        incoming_value = incoming.values[self.key].strip().strip("\"'") if self.strip else incoming.values[self.key]
+        
+        if len(master_value) == 0 or len(incoming_value) == 0:
+        	return 0
+            
         if self.compare == COMPARE_EXACT:
             if master_value == incoming_value:
                 return self.points
@@ -43,8 +50,8 @@ class Mapping(object):
             ratio = SequenceMatcher(None, master_value, incoming_value).ratio()
             # FIXME: this is simplistic. We should have a cutoff value
             return self.points * ratio
-        else:
-            return 0
+        
+        return 0
             
 class Profile(object):
     def __init__(self, **kwargs):
@@ -54,7 +61,10 @@ class Profile(object):
             self.mappings = self.__parse_source(kwargs["source"])
         else:
             self.mappings = []
-            
+    
+    def __str__(self):
+    	return "trapeza.Profile with mappings: {}.".format(self.mappings)
+    
     def __parse_source(self, source):
         maps = []
     
