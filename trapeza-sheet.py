@@ -63,7 +63,7 @@ def action_subtract(sources, keep_duplicates=False):
         first = action_union([first], False)
     
     for source in sources[1:]:
-        for record in source.records():
+        for record in source.reco rds():
             first.del_record(record)
             
     return first
@@ -81,15 +81,20 @@ def main():
                         help="Specify an output file (default standard output)")
     parser.add_argument("-f", 
                         "--output-format", 
-                        choices = outputs.keys(), 
+                        choices = formats.available_output_formats(), 
                         default="csv",
 						help="Specify an output format. If --output is specified, will be inferred from the filename, or defaults to CSV.")
+    parser.add_argument("--output-encoding", 
+                        default="utf-8",
+                        help="For output formats that support Unicode, the desired output encoding. UTF-8 is the default.")
     parser.add_argument("-i", 
                         "--input-format", 
-                        choices = inputs.keys(),
+                        choices = formats.available_output_formats(),
                         default="csv",
 						help="Treat input read from stdin and from files whose type cannot be inferred as being in the specified format. Default is CSV.")
-	
+	parser.add_argument("--input-encoding",
+                        default="utf-8",
+                        help="Treat input data as the specified encoding (for input formats that support Unicode). Column names specified on the command line will be treated as the same encoding.")
     parser.add_argument("--filter", 
                         help="Filter records using the Boolean-valued Python expression provided. Each record is provided as a dictionary called 'record'. If specified together with a combining operation or --add/--drop, filter is run last.")
     parser.add_argument("--sort", 
@@ -146,7 +151,7 @@ def main():
         return 1
         		
     for each_file in args.infile:
-        sources.append(load_source(each_file, get_format(each_file.name, args.input_format)))
+        sources.append(load_source(each_file, get_format(each_file.name, args.input_format), args.input_encoding))
         
 	# If we are ensuring consistency, quit if the files don't have the same column-set.
 	# If not, unify them by adding missing columns.
@@ -162,7 +167,7 @@ def main():
     if args.primary_key and not args.keep_duplicates:
         for source in sources:
             try:
-                source.set_primary_key(args.primary_key)
+                source.set_primary_key(args.primary_key.decode(args.input_encoding))
             except Exception as e:
                 sys.stderr.write ("{}: one or more records is missing the specified primary key.\n".format(sys.argv[0]))
                 return 1
@@ -188,9 +193,9 @@ def main():
     # Run drop, add, and filter after the combination operations have completed.
 
     if args.drop:
-        output.drop_column(args.drop)
+        output.drop_column(args.drop.decode(args.input_encoding))
     if args.add:
-        output.add_column(args.add[0], args.add[1])
+        output.add_column(args.add[0].decode(args.input_encoding), args.add[1].decode(args.input_encoding))
     if args.filter:
         # This is incredibly fucking dangerous and if you run it on a server you're an idiot.
         output.filter_records(lambda rec: bool(eval(args.filter, {"record": rec.values})))
@@ -198,16 +203,12 @@ def main():
     # Sort the final records
     
     if args.sort:
+        # FIXME: need Unicode support
         output.sort_records(args.sort)
     
     try:
         output_format = get_format(args.output.name, args.output_format) 
-        output_function = outputs[output_format]
-        if output_function is not None:
-            output_function(output, args.output, output_format)
-        else:
-            sys.stderr.write("{}: an error occured: no output function available for format {}.".format(sys.argv[0], args.output_format))
-            return 1
+        write_source(output, args.output, output_format, args.output_encoding)
     except Exception as e:
         sys.stderr.write("{}: an error occured while writing output: {}\n".format(sys.argv[0], e))
         return 1

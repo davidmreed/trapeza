@@ -6,7 +6,9 @@
 #  This file is available under the terms of the MIT License.
 #
 
-import os, csv, itertools
+import os, csv, itertools, formats
+
+__all__ = ["Record", "Source", "get_format", "load_source", "sources_consistent", "unify_sources", "write_source"]
 
 class Record(object):
     def __init__(self, values, primary_key = None, input_line = None):
@@ -45,9 +47,6 @@ class Source(object):
         self.__headers = headers
         self.__primary_key = primary_key
         self.__index = {}
-
-    def are_columns_typed(self):
-        return False
         
     def records(self):
         return self.__records
@@ -59,15 +58,18 @@ class Source(object):
         return self.__primary_key
     
     def set_primary_key(self, primary_key):
-        self.__primary_key = primary_key
-        for record in self.__records:
-            record.primary_key = primary_key
-        self.__rebuild_index()
+        if primary_key is None or primary_key in self.headers():
+            self.__primary_key = primary_key
+            for record in self.__records:
+                record.primary_key = primary_key
+            self.__rebuild_index()
+        else:
+            raise Exception("Primary key {} does not exist in source.", primary_key)
         
     def __rebuild_index(self):
-        if self.primary_key():
-            self.__index = {}
+        self.__index = {}
         
+        if self.primary_key():
             for record in self.records():
                 if record.record_id() in self.__index:
                     raise Exception("Source contains records with the same primary key.")
@@ -126,10 +128,11 @@ class Source(object):
     def del_record_with_id(self, key):
         if self.primary_key() and self.get_record_with_id(key):
             self.filter_records(lambda rec: rec.values[self.primary_key()] != key)
-            del self.__index[key]
             
     def filter_records(self, func):
         self.__records = filter(func, self.__records)
+        if self.primary_key():
+            self.__rebuild_index()
         
     def sort_records(self, sortkeys):
         # sorts are stable. Sort in reverse priority order to get a properly sorted list.
@@ -143,39 +146,28 @@ class Source(object):
         else:
             return record in self.__records 
 
-def DelimitedInput(infile, filetype):
-    reader = csv.DictReader(infile, dialect=("excel" if filetype == "csv" else "excel-tab"))
-    source = Source(reader.fieldnames)
+def get_format(path, default = "csv"):
+    try:
+        ext = os.path.splitext(path)[1][1:]
+    except:
+        return default
     
-    for (index, record) in enumerate(reader):
-        source.add_record(Record(record, input_line = index + 1))
-        
-    return source
-        
-    
-def DelimitedOutput(source, output_file, filetype):
-    writer = csv.DictWriter(output_file,
-                            source.headers(),
-                            dialect=("excel" if filetype == "csv" else "excel-tab"))
-    
-    writer.writeheader()
-    writer.writerows([record.values for record in source.records()])
-
-inputs = { 'csv': DelimitedInput, 'tsv': DelimitedInput }
-outputs = { 'csv': DelimitedOutput, 'tsv': DelimitedOutput }
-
-def get_format(path, default):
-    ext = os.path.splitext(path)[1][1:]
     if len(ext) > 0:
         return ext.lower()
                 
     return default
 
-def load_source(source, format):
-    if not inputs.has_key(format):
-        raise Exception, "No importer available for file {} (type {}).\n".format(source, format)
+def load_source(infile, filetype, sheet_name = None, encoding = "utf-8"):
+    if len(formats.importers_for_format(filetype)) == 0:
+        raise Exception, "No importer available for file {} (type {}).\n".format(infile.name, filetype)
     
-    return inputs[format](source, format)
+    return formats.importers_for_format(filetype)[0]().read(infile, filetype, sheet_name, encoding)
+    
+def write_source(source, outfile, filetype, sheet_name = None, encoding = "utf-8"):
+    if len(formats.importers_for_format(filetype)) == 0:
+        raise Exception("No exporter available for format {}.".format(filetype))
+        
+    formats.exporters_for_format(filetype)[0]().write(source, outfile, filetype, sheet_name, encoding)
 
 def sources_consistent(sources):
     first = set(sources[0].headers())

@@ -34,11 +34,17 @@ def main():
                         choices = outputs.keys(), 
                         default="csv",
                         help="Specify an output format. If --output is specified, will be inferred from the filename, or defaults to CSV.")
+    parser.add_argument("--output-encoding", 
+                        default="utf-8",
+                        help="For output formats that support Unicode, the desired output encoding. UTF-8 is the default.")
     parser.add_argument("-i", 
                         "--input-format", 
                         choices = inputs.keys(),
                         default="csv",
                         help="Treat input read from stdin and from files whose type cannot be inferred as being in the specified format. Default is CSV.")
+    parser.add_argument("--input-encoding",
+                        default="utf-8",
+                        help="Treat input data as the specified encoding (for input formats that support Unicode). Column names specified on the command line will be treated as the same encoding.")
     parser.add_argument("-p", 
                         "--profile", 
                         type=argparse.FileType('rb'),
@@ -66,28 +72,23 @@ def main():
         exit(1)
     
     try:
-        incoming = load_source(args.incoming, get_format(args.incoming.name, args.input_format))
-        profile = Profile(source = load_source(args.profile, get_format(args.profile.name, args.input_format)))
-        master = load_source(args.master, get_format(args.master.name, args.input_format))
+        incoming = load_source(args.incoming, get_format(args.incoming.name, args.input_format), args.input_encoding)
+        profile = Profile(source = load_source(args.profile, get_format(args.profile.name, args.input_format), args.input_encoding))
+        master = load_source(args.master, get_format(args.master.name, args.input_format), args.input_encoding)
     except Exception:
         sys.stderr.write("{}: an error occured while loading input files.\n".format(sys.argv[0]))
         return 1
     
-    master.set_primary_key(args.primary_key)
+    master.set_primary_key(args.primary_key.decode(args.input_encoding))
     results = profile.compare_sources(master, incoming, args.match_cutoff)
-    output_source = Source(headers=["Input Line", "Unique ID", "Match Score"])
+    output_source = Source(headers=[u"Input Line", u"Unique ID", u"Match Score"])
     
     for result in results:
-        output_source.add_record(Record({"Input Line": result.incoming.input_line, "Unique ID": result.master.record_id(), "Match Score": result.score}))
+        output_source.add_record(Record({u"Input Line": result.incoming.input_line, u"Unique ID": result.master.record_id(), u"Match Score": result.score}))
 
     try:
         output_format = get_format(args.output.name, args.output_format) 
-        output_function = outputs[output_format]
-        if output_function is not None:
-            output_function(output_source, args.output, output_format)
-        else:
-            sys.stderr.write("{}: an error occured: no output function available for format {}.\n".format(sys.argv[0], args.output_format))
-            return 1
+        write_source(output, args.output, output_format, args.output_encoding)
     except Exception as e:
         sys.stderr.write("{}: an error occured while writing output: {}\n".format(sys.argv[0], e))
         return 1

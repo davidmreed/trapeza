@@ -9,9 +9,9 @@
 from difflib import SequenceMatcher
 from operator import itemgetter
 
-COMPARE_EXACT = "exact"
-COMPARE_PREFIX = "prefix"
-COMPARE_FUZZY = "fuzzy"
+COMPARE_EXACT = u"exact"
+COMPARE_PREFIX = u"prefix"
+COMPARE_FUZZY = u"fuzzy"
 
 class Result(object):
     def __init__(self, incoming, master, score):
@@ -59,20 +59,20 @@ class Profile(object):
         maps = []
     
         for record in source.records():
-            if record.values["compare"] == "exact":
+            if record.values[u"compare"] == u"exact":
                 compare = COMPARE_EXACT
-            elif record.values["compare"] == "prefix":
+            elif record.values[u"compare"] == u"prefix":
                 compare = COMPARE_PREFIX
-            elif record.values["compare"] == "fuzzy":
+            elif record.values[u"compare"] == u"fuzzy":
                 compare = COMPARE_FUZZY
             else:
-                raise Exception, "Invalid compare type {} in profile.".format(record.values["compare"])
+                raise Exception, "Invalid compare type {} in profile.".format(record.values[u"compare"])
         
-            maps.append(Mapping(record.values["key"],
-                                record.values["master-key"],
+            maps.append(Mapping(record.values[u"key"],
+                                record.values[u"master-key"],
                                 compare,
-                                int(record.values["points"]),
-                                bool(record.values["strip"])))
+                                int(record.values[u"points"]),
+                                bool(record.values[u"strip"])))
                                 
         return maps
 
