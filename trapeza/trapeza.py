@@ -11,10 +11,10 @@ import os, csv, itertools, formats
 __all__ = ["Record", "Source", "get_format", "load_source", "sources_consistent", "unify_sources", "write_source"]
 
 class Record(object):
-    def __init__(self, values, primary_key = None, input_line = None):
+    def __init__(self, values, primary_key = None, inputline = None):
         self.values = values
         self.primary_key = primary_key
-        self.input_line = input_line
+        self._input_line = inputline
         
     def __eq__(self, other):
         if other is not None and isinstance(other, Record):
@@ -35,10 +35,10 @@ class Record(object):
         return None
         
     def input_line(self):
-        return self.input_line
+        return self._input_line
     
-    def set_input_line(self, input_line):
-        self.input_line = input_line
+    def set_input_line(self, new_input_line):
+        self._input_line = input_line
         
 
 class Source(object):

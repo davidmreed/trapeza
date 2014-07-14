@@ -26,7 +26,7 @@ class DelimitedImporter(plugins.Importer):
         source = trapeza.Source([fieldname.decode("utf-8") for fieldname in reader.fieldnames])
     
         for (index, rec) in enumerate(reader):
-			source.add_record(trapeza.Record({k.decode("utf-8"): v.decode("utf-8") for k, v in rec.iteritems()}, input_line = index + 1))
+			source.add_record(trapeza.Record({k.decode("utf-8"): v.decode("utf-8") for k, v in rec.iteritems()}, inputline = index + 1))
 
         return source
 
