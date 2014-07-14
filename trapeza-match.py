@@ -17,7 +17,7 @@
 #              strip is true if whitespace and quotes ought to be removed from both comparands
 #              compare is one of 'exact' (equality); 'prefix' (either value is a prefix of the other); 'fuzzy' (assign a percentage of available points based on similarity). 
 
-import argparse, sys, os
+import argparse, sys, pickle
 from trapeza.match import *
 from trapeza import *
 
@@ -31,7 +31,7 @@ def main():
                         help="Specify an output file (default standard output)")
     parser.add_argument("-f", 
                         "--output-format", 
-                        choices = outputs.keys(), 
+                        choices = formats.available_output_formats(), 
                         default="csv",
                         help="Specify an output format. If --output is specified, will be inferred from the filename, or defaults to CSV.")
     parser.add_argument("--output-encoding", 
@@ -39,7 +39,7 @@ def main():
                         help="For output formats that support Unicode, the desired output encoding. UTF-8 is the default.")
     parser.add_argument("-i", 
                         "--input-format", 
-                        choices = inputs.keys(),
+                        choices = formats.available_input_formats(),
                         default="csv",
                         help="Treat input read from stdin and from files whose type cannot be inferred as being in the specified format. Default is CSV.")
     parser.add_argument("--input-encoding",
@@ -53,6 +53,10 @@ def main():
                         "--master", 
                         type=argparse.FileType('rb'),
                         help="Specify the master spreadsheet")
+    parser.add_argument("-M",
+                        "--processed-master",
+                        type=argparse.FileType('rb'),
+                        help="Specify a processed master sheet. The profile information contained within the file will be used and any profile specified on the command line will be ignored.")
     parser.add_argument("-n", 
                         "--incoming", 
                         type=argparse.FileType('rb'),
@@ -67,20 +71,29 @@ def main():
 
     args = parser.parse_args()
     
-    if args.incoming is None or args.profile is None or args.master is None or args.primary_key is None:
-        sys.stderr.write("{}: you must specify a master, incoming, and profile sheet, and a primary key column.\n".format(sys.argv[0]))
+    if args.incoming is None or args.primary_key is None or \
+        ((args.profile is None or args.master is None) and args.processed_master is None):
+        sys.stderr.write("{}: you must specify a master, incoming, and profile sheet (or an incoming sheet and processed master), and a primary key column.\n".format(sys.argv[0]))
         exit(1)
     
     try:
         incoming = load_source(args.incoming, get_format(args.incoming.name, args.input_format), args.input_encoding)
-        profile = Profile(source = load_source(args.profile, get_format(args.profile.name, args.input_format), args.input_encoding))
-        master = load_source(args.master, get_format(args.master.name, args.input_format), args.input_encoding)
+        if args.processed_master:
+            processed_master = pickle.load(args.processed_master)
+            profile = processed_master.profile
+            master = processed_master.source
+        else:
+            processed_master = None
+            profile = Profile(source = load_source(args.profile, get_format(args.profile.name, args.input_format), args.input_encoding))
+            master = load_source(args.master, get_format(args.master.name, args.input_format), args.input_encoding)
     except Exception:
         sys.stderr.write("{}: an error occured while loading input files.\n".format(sys.argv[0]))
         return 1
     
-    master.set_primary_key(args.primary_key.decode(args.input_encoding))
-    results = profile.compare_sources(master, incoming, args.match_cutoff)
+    if processed_master is None:
+        master.set_primary_key(args.primary_key.decode(args.input_encoding))
+    
+    results = profile.compare_sources(processed_master or master, incoming, args.match_cutoff)
     output_source = Source(headers=[u"Input Line", u"Unique ID", u"Match Score"])
     
     for result in results:

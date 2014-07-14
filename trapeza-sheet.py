@@ -89,7 +89,7 @@ def main():
                         help="For output formats that support Unicode, the desired output encoding. UTF-8 is the default.")
     parser.add_argument("-i", 
                         "--input-format", 
-                        choices = formats.available_output_formats(),
+                        choices = formats.available_input_formats(),
                         default="csv",
 						help="Treat input read from stdin and from files whose type cannot be inferred as being in the specified format. Default is CSV.")
 	parser.add_argument("--input-encoding",
