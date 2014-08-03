@@ -41,13 +41,17 @@ class ProcessedSource(object):
         
         if self.profile is not None:
             for mapping in self.profile.mappings:
+                key = mapping.master_key if self.master else mapping.key
                 if mapping.compare == COMPARE_EXACT or mapping.compare == COMPARE_PREFIX:
                     # We use the exact dictionaries with COMPARE_PREFIX mapping too.
-                    exact_keys.append(mapping.master_key if self.master else mapping.key)
+                    if key not in exact_keys:
+                        exact_keys.append(key) 
                     if mapping.compare == COMPARE_PREFIX:
-                        prefix_keys.append(mapping.master_key if self.master else mapping.key) 
+                        if key not in prefix_keys:
+                            prefix_keys.append(key)  
                 elif mapping.compare == COMPARE_FUZZY:
-                    fuzzy_keys.append(mapping.master_key if self.master else mapping.key)
+                    if key not in fuzzy_keys:
+                        fuzzy_keys.append(key) 
         else:
             exact_keys = prefix_keys = fuzzy_keys = source.headers()
             
@@ -60,7 +64,8 @@ class ProcessedSource(object):
             
         for record in self.source.records():
             for key in exact_keys:
-                self.exact[key].append(record.values[key], record)
+                if len(record.values[key]) > 0:
+                    self.exact[key].append(record.values[key], record)
             
             for key in prefix_keys:
                 val = record.values[key]
@@ -70,8 +75,9 @@ class ProcessedSource(object):
                         self.prefix[key].append(val[:i], record)
                         
             for key in fuzzy_keys:
-                n = nilsimsa.Nilsimsa(record.values[key].encode("utf-8"))
-                self.fuzzy[key].append(n.compare(ProcessedSource.NILSIMSA_DISTANCE_BASE), (n.digest(), record))
+                if len(record.values[key]) > 0:
+                    n = nilsimsa.Nilsimsa(record.values[key].encode("utf-8"))
+                    self.fuzzy[key].append(n.compare(ProcessedSource.NILSIMSA_DISTANCE_BASE), (n.digest(), record))
                 
         self.processed = True
 
@@ -83,6 +89,9 @@ class ProcessedSource(object):
         key = mapping.master_key if self.master else mapping.key
         value = record.values[mapping.master_key if not self.master else mapping.key]
         
+        if len(value) == 0:
+            return []
+            
         results = []
         
         if mapping.compare == COMPARE_EXACT:
