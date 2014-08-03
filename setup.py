@@ -10,7 +10,8 @@ setup(
     url="https://bitbucket.org/davidreed/trapeza",
     author="David Reed",
     author_email="david@ktema.org",
-    packages=["trapeza"],
+    packages=["trapeza", "trapeza.formats"],
+    scripts=["trapeza-sheet.py", "trapeza-match.py", "trapeza-process.py"],
     license="MIT",
     install_requires=["Python >= 2.7"],
     long_description=open("README.txt").read())

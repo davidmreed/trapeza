@@ -13,10 +13,10 @@ __all__ = ["COMPARE_EXACT", "COMPARE_PREFIX", "COMPARE_FUZZY", "ProcessedSource"
 
 COMPARE_EXACT = u"exact"
 COMPARE_PREFIX = u"prefix"
-COMPARE_FUZZY = u"fuzzy"
+COMPARE_FUZZY = u"fuzzy"    
 
 class AdditiveDict(dict):            
-    def append(key, value):
+    def append(self, key, value):
         self.setdefault(key, []).append(value)     
 
 
@@ -41,12 +41,13 @@ class ProcessedSource(object):
         
         if self.profile is not None:
             for mapping in self.profile.mappings:
-                if mapping.compare == COMPARE_EXACT:
+                if mapping.compare == COMPARE_EXACT or mapping.compare == COMPARE_PREFIX:
+                    # We use the exact dictionaries with COMPARE_PREFIX mapping too.
                     exact_keys.append(mapping.master_key if self.master else mapping.key)
+                    if mapping.compare == COMPARE_PREFIX:
+                        prefix_keys.append(mapping.master_key if self.master else mapping.key) 
                 elif mapping.compare == COMPARE_FUZZY:
                     fuzzy_keys.append(mapping.master_key if self.master else mapping.key)
-                elif mapping.compare == COMPARE_PREFIX:
-                    prefix_keys.append(mapping.master_key if self.master else mapping.key)
         else:
             exact_keys = prefix_keys = fuzzy_keys = source.headers()
             
@@ -65,7 +66,7 @@ class ProcessedSource(object):
                 val = record.values[key]
                 
                 if len(val) > self.profile.prefix_len:
-                    for i in range(0, len(val)-self.profile.prefix_len, -1):
+                    for i in range(self.profile.prefix_len, len(val)):
                         self.prefix[key].append(val[:i], record)
                         
             for key in fuzzy_keys:
@@ -87,13 +88,16 @@ class ProcessedSource(object):
         if mapping.compare == COMPARE_EXACT:
             results.extend(self.exact[key].get(value, []))
         elif mapping.compare == COMPARE_PREFIX:
-            if len(value) > self.profile.prefix_len:
+            if len(value) >= self.profile.prefix_len:
+                # Find all other records having this value as a prefix.
                 other_has_this_prefix = self.prefix[key].get(value, [])
                 
                 results.extend(other_has_this_prefix)
                 
+                # Find all other records whose value is a prefix of this one.
+                # Note we use the exact dictionary for this - we're not doing common substring.
                 for i in range(self.profile.prefix_len, len(value)-1):
-                    results.extend(self.prefix[key].get(value[:i], []))
+                    results.extend(self.exact[key].get(value[:i], []))
                     
         elif mapping.compare == COMPARE_FUZZY:
             nilsimsa_distance = nilsimsa.Nilsimsa(value.encode("utf-8")).compare(ProcessedSource.NILSIMSA_DISTANCE_BASE)
@@ -107,6 +111,12 @@ class Result(object):
         self.incoming = incoming
         self.master = master
         self.score = score
+        
+    def __eq__(self, other):
+        return self.incoming == other.incoming and self.master == other.master and self.score == other.score
+    
+    def __str__(self):
+        return "Result with score {} between master {} and incoming {}.".format(self.score, self.master.record_id() or self.master, self.incoming.record_id() or self.incoming)
         
 class Mapping(object):
     def __init__(self, incoming_key, master_key, compare=COMPARE_EXACT, points=1, strip=True, prefix_len = 3):
@@ -134,8 +144,8 @@ class Mapping(object):
             if master_value == incoming_value:
                 return self.points
         elif self.compare == COMPARE_PREFIX:
-            if (master_value.startswith(incoming_value) and len(incoming_value) > self.prefix_len) \
-                or (incoming_value.startswith(master_value) and len(master_value) > self.prefix_len):
+            if (master_value.startswith(incoming_value) and len(incoming_value) >= self.prefix_len) \
+                or (incoming_value.startswith(master_value) and len(master_value) >= self.prefix_len):
                 return self.points
         elif self.compare == COMPARE_FUZZY:
             return ((nilsimsa.Nilsimsa(master_value.encode("utf-8")).compare(nilsimsa.Nilsimsa(incoming_value.encode("utf-8")).digest()) + 127) / 255.0) * self.points
@@ -189,7 +199,7 @@ class Profile(object):
         for incoming_record in incoming.records():
             for master_record in master.records():
                 points = self.compare_records(master_record, incoming_record)
-                if points >= cutoff:
+                if points >= cutoff and points > 0:
                     results.append(Result(incoming_record, master_record, points))
                     
         return results
@@ -212,11 +222,12 @@ class Profile(object):
                         # for Nilsimsa results the "record" is actually a (digest, record) tuple
                         (digest, real_record) = master_record
                         score = results_this_record.get(real_record, 0)
-                        value = real_record.values[mapping.master_key]
-                        results_this_record[real_record] = score + _nilsimsa_ratio_as_percent(digest, nilsimsa.Nilsimsa(value.encode("utf-8"))) * mapping.points
-                        
+                        results_this_record[real_record] = score + _nilsimsa_ratio_as_percent(digest, nilsimsa.Nilsimsa(record.values[mapping.key].encode("utf-8"))) * mapping.points
+                    
+                       
             for each_result_key in results_this_record:
-                results.append(Result(record, each_result_key, results_this_record[each_result_key]))
+                if results_this_record[each_result_key] >= cutoff:
+                    results.append(Result(record, each_result_key, results_this_record[each_result_key]))
         
         return results
                 

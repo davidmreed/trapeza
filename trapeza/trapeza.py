@@ -163,7 +163,7 @@ def load_source(infile, filetype, sheet_name = None, encoding = "utf-8"):
     
     return formats.importers_for_format(filetype)[0]().read(infile, filetype, sheet_name, encoding)
     
-def write_source(source, outfile, sheet_name = None, encoding = "utf-8"):
+def write_source(source, outfile, filetype, sheet_name = None, encoding = "utf-8"):
     if len(formats.importers_for_format(filetype)) == 0:
         raise Exception("No exporter available for format {}.".format(filetype))
         

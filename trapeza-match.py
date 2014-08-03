@@ -97,11 +97,11 @@ def main():
     output_source = Source(headers=[u"Input Line", u"Unique ID", u"Match Score"])
     
     for result in results:
-        output_source.add_record(Record({u"Input Line": result.incoming.input_line, u"Unique ID": result.master.record_id(), u"Match Score": result.score}))
-
+        output_source.add_record(Record({u"Input Line": str(result.incoming.input_line()), u"Unique ID": result.master.record_id(), u"Match Score": str(result.score)}))
+        
     try:
         output_format = get_format(args.output.name, args.output_format) 
-        write_source(output, args.output, output_format, args.output_encoding)
+        write_source(output_source, args.output, output_format, encoding = args.output_encoding)
     except Exception as e:
         sys.stderr.write("{}: an error occured while writing output: {}\n".format(sys.argv[0], e))
         return 1

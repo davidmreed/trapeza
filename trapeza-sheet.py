@@ -208,7 +208,7 @@ def main():
     
     try:
         output_format = get_format(args.output.name, args.output_format) 
-        write_source(output, args.output, output_format, args.output_encoding)
+        write_source(output, args.output, output_format, encoding = args.output_encoding)
     except Exception as e:
         sys.stderr.write("{}: an error occured while writing output: {}\n".format(sys.argv[0], e))
         return 1
