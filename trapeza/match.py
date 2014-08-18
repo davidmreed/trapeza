@@ -34,6 +34,7 @@ class ProcessedSource(object):
         self.exact = {}
         self.prefix = {}
         self.fuzzy = {}
+        self.strip_keys = []
         
         exact_keys = []
         prefix_keys = []
@@ -51,9 +52,14 @@ class ProcessedSource(object):
                             prefix_keys.append(key)  
                 elif mapping.compare == COMPARE_FUZZY:
                     if key not in fuzzy_keys:
-                        fuzzy_keys.append(key) 
+                        fuzzy_keys.append(key)
+
+            if mapping.strip:
+                self.strip_keys.append(key)
+
         else:
-            exact_keys = prefix_keys = fuzzy_keys = source.headers()
+            self.strip_keys = exact_keys = prefix_keys = fuzzy_keys = source.headers()
+            
             
         for key in exact_keys:
             self.exact[key] = AdditiveDict()
@@ -64,18 +70,28 @@ class ProcessedSource(object):
             
         for record in self.source.records():
             for key in exact_keys:
-                if len(record.values[key]) > 0:
-                    self.exact[key].append(record.values[key], record)
+                value = record.values[key]
+                if key in self.strip_keys:
+                    value = value.strip().strip("\"'")
+
+                if len(value) > 0:
+                    self.exact[key].append(value, record)
             
             for key in prefix_keys:
                 val = record.values[key]
-                
+                if key in self.strip_keys:
+                    val = val.strip().strip("\"'")
+
                 if len(val) > self.profile.prefix_len:
                     for i in range(self.profile.prefix_len, len(val)):
                         self.prefix[key].append(val[:i], record)
                         
             for key in fuzzy_keys:
-                if len(record.values[key]) > 0:
+                value = record.values[key]
+                if key in self.strip_keys:
+                    value = value.strip().strip("\"'")
+
+                if len(value) > 0:
                     n = nilsimsa.Nilsimsa(record.values[key].encode("utf-8"))
                     self.fuzzy[key].append(n.compare(ProcessedSource.NILSIMSA_DISTANCE_BASE), (n.digest(), record))
                 
@@ -88,6 +104,8 @@ class ProcessedSource(object):
         
         key = mapping.master_key if self.master else mapping.key
         value = record.values[mapping.master_key if not self.master else mapping.key]
+        if mapping.strip:
+            value = value.strip().strip("\"'")
         
         if len(value) == 0:
             return []
