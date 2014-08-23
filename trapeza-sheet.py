@@ -63,7 +63,7 @@ def action_subtract(sources, keep_duplicates=False):
         first = action_union([first], False)
     
     for source in sources[1:]:
-        for record in source.reco rds():
+        for record in source.records():
             first.del_record(record)
             
     return first
@@ -73,7 +73,7 @@ def main():
     parser.add_argument("--require-consistency", 
                         action="store_true", 
                         default=False,
-						help="Require all input sheets to have the same column structure and trigger errors on unexpected values. If not specified, the output file will contain the union of all headers in all sources, and missing values will be filled with blanks.")
+                        help="Require all input sheets to have the same column structure and trigger errors on unexpected values. If not specified, the output file will contain the union of all headers in all sources, and missing values will be filled with blanks.")
     parser.add_argument("-o", 
                         "--output", 
                         type=argparse.FileType('wb'), 
@@ -83,7 +83,7 @@ def main():
                         "--output-format", 
                         choices = formats.available_output_formats(), 
                         default="csv",
-						help="Specify an output format. If --output is specified, will be inferred from the filename, or defaults to CSV.")
+                        help="Specify an output format. If --output is specified, will be inferred from the filename, or defaults to CSV.")
     parser.add_argument("--output-encoding", 
                         default="utf-8",
                         help="For output formats that support Unicode, the desired output encoding. UTF-8 is the default.")
@@ -91,8 +91,8 @@ def main():
                         "--input-format", 
                         choices = formats.available_input_formats(),
                         default="csv",
-						help="Treat input read from stdin and from files whose type cannot be inferred as being in the specified format. Default is CSV.")
-	parser.add_argument("--input-encoding",
+                        help="Treat input read from stdin and from files whose type cannot be inferred as being in the specified format. Default is CSV.")
+    parser.add_argument("--input-encoding",
                         default="utf-8",
                         help="Treat input data as the specified encoding (for input formats that support Unicode). Column names specified on the command line will be treated as the same encoding.")
     parser.add_argument("--filter", 
@@ -121,11 +121,11 @@ def main():
                         action="store_true", 
                         default=False,
                         help="When performing a union or subtract operation, retain duplicate records")
-	
+    
     verbs = parser.add_mutually_exclusive_group()
     verbs.add_argument("--union", 
                        action="store_true", 
-					   help="Combine all inputs. If --primary-key is provided, use it to identify duplicates; otherwise, use record equality. Earlier rows and earlier sources take precedence (unless --keep-duplicates is specified).")
+                       help="Combine all inputs. If --primary-key is provided, use it to identify duplicates; otherwise, use record equality. Earlier rows and earlier sources take precedence (unless --keep-duplicates is specified).")
     verbs.add_argument("--intersect", 
                        action="store_true", 
                        help="Output only rows present in all sources. Identity semantics as in --union. Does not retain duplicates.")
@@ -135,26 +135,26 @@ def main():
     verbs.add_argument("--xor", 
                        action="store_true", 
                        help="Output rows present in one and only one source. Identity semantics as in --union. Does not retain duplicates")
-	
+    
     parser.add_argument("infile", 
                         nargs="*", 
                         type=argparse.FileType('rb'), 
                         help="An input source.")
     
     args = parser.parse_args()
-		
-	# Load all sources
+        
+    # Load all sources
     sources = []
 
     if len(args.infile) < 1:
         sys.stderr.write("{}: no sources were specified.\n".format(sys.argv[0]))
         return 1
-        		
+                
     for each_file in args.infile:
         sources.append(load_source(each_file, get_format(each_file.name, args.input_format), args.input_encoding))
         
-	# If we are ensuring consistency, quit if the files don't have the same column-set.
-	# If not, unify them by adding missing columns.
+    # If we are ensuring consistency, quit if the files don't have the same column-set.
+    # If not, unify them by adding missing columns.
     if args.require_consistency:
         if not sources_consistent(sources):
             sys.stderr.write("{}: sources are not consistent and --require-consistency was specified.\n".format(sys.argv[0]))
@@ -213,7 +213,7 @@ def main():
         sys.stderr.write("{}: an error occured while writing output: {}\n".format(sys.argv[0], e))
         return 1
     
-	return 0
+    return 0
 
 if __name__ == '__main__':
-	exit(main())
+    exit(main())

@@ -163,11 +163,11 @@ def load_source(infile, filetype, sheet_name = None, encoding = "utf-8"):
     
     return formats.importers_for_format(filetype)[0]().read(infile, filetype, sheet_name, encoding)
     
-def write_source(source, outfile, filetype, sheet_name = None, encoding = "utf-8"):
+def write_source(source, outfile, filetype, sheet_name = None, encoding = "utf-8", **kwd):
     if len(formats.importers_for_format(filetype)) == 0:
         raise Exception("No exporter available for format {}.".format(filetype))
         
-    formats.exporters_for_format(filetype)[0]().write(source, outfile, filetype, sheet_name, encoding)
+    formats.exporters_for_format(filetype)[0]().write(source, outfile, filetype, sheet_name, encoding, **kwd)
 
 def sources_consistent(sources):
     first = set(sources[0].headers())

@@ -5,7 +5,7 @@
 #  Copyright 2013-2014 David Reed <david@ktema.org>
 #  This file is available under the terms of the MIT License.
 
-import csv, trapeza, plugins
+import csv, trapeza, plugins, io
 
 __all__ = [ "DelimitedImporter", "DelimitedExporter" ]
 
@@ -34,11 +34,18 @@ class DelimitedImporter(plugins.Importer):
 class DelimitedExporter(plugins.Exporter):
     formats = ["csv", "tsv", "chr"]            
     
-    def write(self, source, file_like_object, file_format = "csv", sheet_name = None, encoding = "utf-8"):
-        writer = csv.DictWriter(file_like_object,
-                                [header.encode(encoding) for header in source.headers()],
-                                dialect=("excel" if file_format == "csv" else "excel-tab"))
+    def write(self, source, file_like_object, file_format = "csv", sheet_name = None, encoding = "utf-8", line_endings = "\r\n"):
+        
+        temp_out = io.BytesIO()
+        
+        writer = csv.DictWriter(temp_out,
+                                [header.encode("utf-8") for header in source.headers()],
+                                dialect=("excel" if file_format == "csv" else "excel-tab"),
+                                lineterminator = line_endings if line_endings in ["\r\n", "\r", "\n"] else "\r\n")
     
         writer.writeheader()
-        writer.writerows([{k.encode(encoding): v.encode(encoding) for k, v in record.values.iteritems()} for record in source.records()])
+        writer.writerows([{k.encode("utf-8"): v.encode("utf-8") for k, v in record.values.iteritems()} for record in source.records()])
+        
+        temp_out.seek(0)
+        file_like_object.write(temp_out.read().decode("utf-8").encode(encoding))
 
