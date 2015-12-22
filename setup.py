@@ -17,4 +17,4 @@ setup(
     scripts=["trapeza-sheet.py", "trapeza-match.py", "trapeza-process.py"],
     license="MIT",
     install_requires=["Python >= 2.7"],
-    long_description=open("README.txt").read())
+    long_description=open("README.md").read())
