@@ -5,13 +5,17 @@
 #  Copyright 2013-2014 David Reed <david@ktema.org>
 #  This file is available under the terms of the MIT License.
 
-import trapeza, trapeza.match, unittest, StringIO
+import StringIO
+import trapeza
+import trapeza.match
+import unittest
+
 
 class TestTrapeza(unittest.TestCase):
 
     def test_record(self):
-        a = trapeza.Record({u"Name": u"Test 1", u"ID": 1, u"Data": u"Test 1 Data"}, primary_key = u"ID")
-        b = trapeza.Record({u"Name": u"Test 2", u"ID": 2, u"Data": u"Test 2 Data"}, primary_key = u"ID")
+        a = trapeza.Record({u"Name": u"Test 1", u"ID": 1, u"Data": u"Test 1 Data"}, primary_key=u"ID")
+        b = trapeza.Record({u"Name": u"Test 2", u"ID": 2, u"Data": u"Test 2 Data"}, primary_key=u"ID")
         
         self.assertEqual(a.record_id(), 1)
         self.assertEqual(a.values[u"Name"], u"Test 1")
@@ -103,22 +107,24 @@ class TestTrapeza(unittest.TestCase):
         self.assertTrue(trapeza.sources_consistent([a, b]))
         
     def test_load_save(self):
-        test_data = u"Name,Donations,ID\nTim,500,1\nMary,125.3,2\nSam Smith,12000,3\nKen,250,4\nΕὐθύφρων,150,5".encode("utf-8")
+        test_data = u"Name,Donations,ID\nTim,500,1\nMary,125.3,2\nSam Smith,12000,3\nKen,250,4\nΕὐθύφρων,150,5"\
+            .encode("utf-8")
         infile = StringIO.StringIO(test_data)
 
-        a = trapeza.load_source(infile, "csv", encoding = "utf-8")
+        a = trapeza.load_source(infile, "csv", encoding="utf-8")
         self.assertEqual(len(a.records()), 5)
         a.set_primary_key(u"ID")
     
         self.assertEqual(a.get_record_with_id(u"5").values[u"Name"], u"Εὐθύφρων")
         
         of = StringIO.StringIO()
-        trapeza.write_source(a, of, "csv", encoding = "utf-8")
+        trapeza.write_source(a, of, "csv", encoding="utf-8")
         
-        b = trapeza.load_source(StringIO.StringIO(of.getvalue()), "csv", encoding = "utf-8")
+        b = trapeza.load_source(StringIO.StringIO(of.getvalue()), "csv", encoding="utf-8")
         self.assertEqual(len(b.records()), 5)
         b.set_primary_key(u"ID")
         self.assertEqual(b.get_record_with_id(u"5").values[u"Name"], u"Εὐθύφρων")
+
 
 class TestMatch(unittest.TestCase):
     def test_mapping(self):
@@ -139,7 +145,7 @@ class TestMatch(unittest.TestCase):
         self.assertGreater(a.compare_records(ra, rb), 0)
         # Nilsimsa hashing doesn't work as expected for short strings - it works on long strings
         # FIXME: use a better locality-sensitive hash.
-        #self.assertGreater(a.compare_records(ra, rb), a.compare_records(ra, rc))
+        # self.assertGreater(a.compare_records(ra, rb), a.compare_records(ra, rc))
         
     def test_profile(self):
         ra = trapeza.Record({u"Name": u"Tim", u"Address": u"130 Main St."})
@@ -150,7 +156,7 @@ class TestMatch(unittest.TestCase):
         b = trapeza.match.Mapping(u"Address", u"Address", trapeza.match.COMPARE_PREFIX, 1)
         # FIXME: Add fuzzy matching when our hashing issues are fixed.
         
-        p = trapeza.match.Profile(mappings = [a, b])
+        p = trapeza.match.Profile(mappings=[a, b])
         
         self.assertEqual(p.compare_records(ra, rb), 0)
         self.assertEqual(p.compare_records(ra, rc), 1)
@@ -178,7 +184,7 @@ class TestMatch(unittest.TestCase):
         c = trapeza.match.Mapping(u"Address", u"Address", trapeza.match.COMPARE_PREFIX, 1)
         d = trapeza.match.Mapping(u"Address", u"Address", trapeza.match.COMPARE_EXACT, 1)
 
-        p = trapeza.match.Profile(mappings = [a, b, c, d])
+        p = trapeza.match.Profile(mappings=[a, b, c, d])
                 
         sa = trapeza.Source(ra.values.keys())
         sa.add_record(ra)
@@ -202,6 +208,3 @@ class TestMatch(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-
-

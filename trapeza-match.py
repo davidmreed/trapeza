@@ -15,15 +15,21 @@
 #              master-key is the corresponding key in the master source, or blank to use the same key.
 #              points is the number of points to assign to a match on this key
 #              strip is true if whitespace and quotes ought to be removed from both comparands
-#              compare is one of 'exact' (equality); 'prefix' (either value is a prefix of the other); 'fuzzy' (assign a percentage of available points based on similarity). 
+#              compare is one of 'exact' (equality);
+#                                'prefix' (either value is a prefix of the other);
+#                                'fuzzy' (assign a percentage of available points based on similarity).
 
-import argparse, sys, pickle
+import argparse
+import sys
+import pickle
 from trapeza.match import *
 from trapeza import *
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Manipulate and combine tabular data files. Use this utility to match incoming records against an existing data set.")
+    parser = argparse.ArgumentParser(description="Manipulate and combine tabular data files. "
+                                                 "Use this utility to match incoming records "
+                                                 "against an existing data set.")
     parser.add_argument("-o", 
                         "--output", 
                         type=argparse.FileType('wb'), 
@@ -31,20 +37,24 @@ def main():
                         help="Specify an output file (default standard output)")
     parser.add_argument("-f", 
                         "--output-format", 
-                        choices = formats.available_output_formats(), 
+                        choices=formats.available_output_formats(),
                         default="csv",
-                        help="Specify an output format. If --output is specified, will be inferred from the filename, or defaults to CSV.")
+                        help="Specify an output format. If --output is specified, "
+                             "will be inferred from the filename, or defaults to CSV.")
     parser.add_argument("--output-encoding", 
                         default="utf-8",
-                        help="For output formats that support Unicode, the desired output encoding. UTF-8 is the default.")
+                        help="For output formats that support Unicode, the desired output encoding. "
+                             "UTF-8 is the default.")
     parser.add_argument("-i", 
                         "--input-format", 
-                        choices = formats.available_input_formats(),
+                        choices=formats.available_input_formats(),
                         default="csv",
-                        help="Treat input read from stdin and from files whose type cannot be inferred as being in the specified format. Default is CSV.")
+                        help="Treat input read from stdin and from files whose type cannot be inferred as being "
+                             "in the specified format. Default is CSV.")
     parser.add_argument("--input-encoding",
                         default="utf-8",
-                        help="Treat input data as the specified encoding (for input formats that support Unicode). Column names specified on the command line will be treated as the same encoding.")
+                        help="Treat input data as the specified encoding (for input formats that support Unicode). "
+                             "Column names specified on the command line will be treated as the same encoding.")
     parser.add_argument("-p", 
                         "--profile", 
                         type=argparse.FileType('rb'),
@@ -56,7 +66,8 @@ def main():
     parser.add_argument("-M",
                         "--processed-master",
                         type=argparse.FileType('rb'),
-                        help="Specify a processed master sheet. The profile information contained within the file will be used and any profile specified on the command line will be ignored.")
+                        help="Specify a processed master sheet. The profile information contained within the file will "
+                             "be used and any profile specified on the command line will be ignored.")
     parser.add_argument("-n", 
                         "--incoming", 
                         type=argparse.FileType('rb'),
@@ -72,8 +83,9 @@ def main():
     args = parser.parse_args()
     
     if args.incoming is None or args.primary_key is None or \
-        ((args.profile is None or args.master is None) and args.processed_master is None):
-        sys.stderr.write("{}: you must specify a master, incoming, and profile sheet (or an incoming sheet and processed master), and a primary key column.\n".format(sys.argv[0]))
+            ((args.profile is None or args.master is None) and args.processed_master is None):
+        sys.stderr.write("{}: you must specify a master, incoming, and profile sheet (or an incoming sheet and "
+                         "processed master), and a primary key column.\n".format(sys.argv[0]))
         exit(1)
     
     try:
@@ -84,7 +96,8 @@ def main():
             master = processed_master.source
         else:
             processed_master = None
-            profile = Profile(source = load_source(args.profile, get_format(args.profile.name, args.input_format), args.input_encoding))
+            profile = Profile(source=load_source(args.profile, get_format(args.profile.name, args.input_format),
+                                                 args.input_encoding))
             master = load_source(args.master, get_format(args.master.name, args.input_format), args.input_encoding)
     except Exception:
         sys.stderr.write("{}: an error occured while loading input files.\n".format(sys.argv[0]))
@@ -97,12 +110,14 @@ def main():
     output_source = Source(headers=[u"Input Line", u"Unique ID", u"Match Score"])
     
     for result in results:
-        output_source.add_record(Record({u"Input Line": str(result.incoming.input_line()), u"Unique ID": result.master.record_id(), u"Match Score": str(result.score)}))
+        output_source.add_record(Record({u"Input Line": str(result.incoming.input_line()),
+                                         u"Unique ID": result.master.record_id(),
+                                         u"Match Score": str(result.score)}))
         
     try:
         output_format = get_format(args.output.name, args.output_format) 
-        write_source(output_source, args.output, output_format, encoding = args.output_encoding)
-    except Exception as e:
+        write_source(output_source, args.output, output_format, encoding=args.output_encoding)
+    except IOError as e:
         sys.stderr.write("{}: an error occured while writing output: {}\n".format(sys.argv[0], e))
         return 1
     

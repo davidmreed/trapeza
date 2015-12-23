@@ -200,7 +200,7 @@ def main():
         for source in sources:
             try:
                 source.set_primary_key(args.primary_key.decode(args.input_encoding))
-            except KeyError as e:
+            except KeyError:
                 sys.stderr.write("{}: one or more records is missing the specified primary key.\n".format(sys.argv[0]))
                 return 1
 

@@ -6,12 +6,14 @@
 #  This file is available under the terms of the MIT License.
 #
 
-import os, csv, itertools, formats
+import os
+import formats
 
 __all__ = ["Record", "Source", "get_format", "load_source", "sources_consistent", "unify_sources", "write_source"]
 
+
 class Record(object):
-    def __init__(self, values, primary_key = None, inputline = None):
+    def __init__(self, values, primary_key=None, inputline=None):
         self.values = values
         self.primary_key = primary_key
         self._input_line = inputline
@@ -38,13 +40,13 @@ class Record(object):
         return self._input_line
     
     def set_input_line(self, new_input_line):
-        self._input_line = input_line
+        self._input_line = new_input_line
         
 
 class Source(object):
-    def __init__(self, headers = [], primary_key = None):
+    def __init__(self, headers=None, primary_key=None):
         self.__records = []
-        self.__headers = headers
+        self.__headers = headers or []
         self.__primary_key = primary_key
         self.__index = {}
         
@@ -97,7 +99,7 @@ class Source(object):
             raise Exception("Cannot remove the column containing the primary key.")
     
     def drop_column_index(self, column_index):
-        self.drop_column(self.__headers[index])
+        self.drop_column(self.__headers[column_index])
     
     def get_record_with_id(self, key):
         return self.__index.get(key)
@@ -138,7 +140,8 @@ class Source(object):
         # sorts are stable. Sort in reverse priority order to get a properly sorted list.
 
         for (key, ascending, value_type) in reversed(sortkeys):
-             self.__records.sort(key=lambda rec: float(rec.values[key]) if value_type == "number" else rec.values[key], reverse=not ascending)
+            self.__records.sort(key=lambda rec: float(rec.values[key]) if value_type == "number" else rec.values[key],
+                                reverse=not ascending)
             
     def contains_record(self, record):
         if record.record_id() is not None:
@@ -146,28 +149,29 @@ class Source(object):
         else:
             return record in self.__records 
 
-def get_format(path, default = "csv"):
-    try:
-        ext = os.path.splitext(path)[1][1:]
-    except:
-        return default
-    
+
+def get_format(path, default="csv"):
+    ext = os.path.splitext(path)[1][1:]
+
     if len(ext) > 0:
         return ext.lower()
                 
     return default
 
-def load_source(infile, filetype, sheet_name = None, encoding = "utf-8"):
+
+def load_source(infile, filetype, sheet_name=None, encoding="utf-8"):
     if len(formats.importers_for_format(filetype)) == 0:
-        raise Exception, "No importer available for file {} (type {}).\n".format(infile.name, filetype)
+        raise Exception("No importer available for file {} (type {}).\n".format(infile.name, filetype))
     
     return formats.importers_for_format(filetype)[0]().read(infile, filetype, sheet_name, encoding)
     
-def write_source(source, outfile, filetype, sheet_name = None, encoding = "utf-8", **kwd):
+
+def write_source(source, outfile, filetype, sheet_name=None, encoding="utf-8", **kwd):
     if len(formats.importers_for_format(filetype)) == 0:
         raise Exception("No exporter available for format {}.".format(filetype))
         
     formats.exporters_for_format(filetype)[0]().write(source, outfile, filetype, sheet_name, encoding, **kwd)
+
 
 def sources_consistent(sources):
     first = set(sources[0].headers())
@@ -178,6 +182,7 @@ def sources_consistent(sources):
     
     return True
     
+
 def unify_sources(sources):
     totality = set([header for source in sources for header in source.headers()])
 

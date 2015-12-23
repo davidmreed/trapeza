@@ -7,13 +7,13 @@
 #
 
 import nilsimsa
-from operator import itemgetter
 
 __all__ = ["COMPARE_EXACT", "COMPARE_PREFIX", "COMPARE_FUZZY", "ProcessedSource", "Result", "Mapping", "Profile"]
 
 COMPARE_EXACT = u"exact"
 COMPARE_PREFIX = u"prefix"
 COMPARE_FUZZY = u"fuzzy"    
+
 
 class AdditiveDict(dict):            
     def append(self, key, value):
@@ -24,18 +24,17 @@ class ProcessedSource(object):
     
     NILSIMSA_DISTANCE_BASE = nilsimsa.Nilsimsa(u"b4se str1ng 4 c0mparison with NILSIMSA hash!".encode("utf-8")).digest()
     
-    def __init__(self, source, master = True, profile = None):
+    def __init__(self, source, master=True, profile=None):
         self.source = source
         self.master = master
         self.profile = profile
         self.processed = False
-    
-    def process(self):
         self.exact = {}
         self.prefix = {}
         self.fuzzy = {}
         self.strip_keys = []
-        
+
+    def process(self):
         exact_keys = []
         prefix_keys = []
         fuzzy_keys = []
@@ -54,13 +53,12 @@ class ProcessedSource(object):
                     if key not in fuzzy_keys:
                         fuzzy_keys.append(key)
 
-            if mapping.strip:
-                self.strip_keys.append(key)
+                if mapping.strip:
+                    self.strip_keys.append(key)
 
         else:
-            self.strip_keys = exact_keys = prefix_keys = fuzzy_keys = source.headers()
-            
-            
+            self.strip_keys = exact_keys = prefix_keys = fuzzy_keys = self.source.headers()
+
         for key in exact_keys:
             self.exact[key] = AdditiveDict()
         for key in prefix_keys:
@@ -97,7 +95,6 @@ class ProcessedSource(object):
                 
         self.processed = True
 
-        
     def matches(self, mapping, record):
         if not self.processed:
             raise Exception("Please process this source before attempting a match.")
@@ -143,10 +140,12 @@ class Result(object):
         return self.incoming == other.incoming and self.master == other.master and self.score == other.score
     
     def __str__(self):
-        return "Result with score {} between master {} and incoming {}.".format(self.score, self.master.record_id() or self.master, self.incoming.record_id() or self.incoming)
-        
+        return "Result with score {} between master {} and incoming {}."\
+            .format(self.score, self.master.record_id() or self.master, self.incoming.record_id() or self.incoming)
+
+
 class Mapping(object):
-    def __init__(self, incoming_key, master_key, compare=COMPARE_EXACT, points=1, strip=True, prefix_len = 3):
+    def __init__(self, incoming_key, master_key, compare=COMPARE_EXACT, points=1, strip=True, prefix_len=3):
         self.key = incoming_key
         self.master_key = master_key
         self.compare = compare
@@ -155,30 +154,37 @@ class Mapping(object):
         self.prefix_len = prefix_len
         
     def __str__(self):
-    	return "trapeza.Mapping: {0} to {1} using comparison {2} for {3} points.".format(self.key, self.master_key, self.compare, self.points)
+        return "trapeza.Mapping: {0} to {1} using comparison {2} for {3} points.".format(self.key,
+                                                                                         self.master_key,
+                                                                                         self.compare,
+                                                                                         self.points)
     
     def compare_records(self, master, incoming):
         if self.master_key not in master.values or self.key not in incoming.values:
-            raise Exception, "Mapping {0} specifies a key that does not exist in one or more records.".format(self)
+            raise Exception("Mapping {0} specifies a key that does not exist in one or more records.".format(self))
         
-        master_value = master.values[self.master_key].strip().strip("\"'") if self.strip else master.values[self.master_key]
+        master_value = master.values[self.master_key].strip().strip("\"'") \
+            if self.strip else master.values[self.master_key]
         incoming_value = incoming.values[self.key].strip().strip("\"'") if self.strip else incoming.values[self.key]
         
         if len(master_value) == 0 or len(incoming_value) == 0:
-        	return 0
+            return 0
             
         if self.compare == COMPARE_EXACT:
             if master_value == incoming_value:
                 return self.points
         elif self.compare == COMPARE_PREFIX:
             if (master_value.startswith(incoming_value) and len(incoming_value) >= self.prefix_len) \
-                or (incoming_value.startswith(master_value) and len(master_value) >= self.prefix_len):
+                    or (incoming_value.startswith(master_value) and len(master_value) >= self.prefix_len):
                 return self.points
         elif self.compare == COMPARE_FUZZY:
-            return ((nilsimsa.Nilsimsa(master_value.encode("utf-8")).compare(nilsimsa.Nilsimsa(incoming_value.encode("utf-8")).digest()) + 127) / 255.0) * self.points
+            mns = nilsimsa.Nilsimsa(master_value.encode("utf-8"))
+            ins = nilsimsa.Nilsimsa(incoming_value.encode("utf-8"))
+            return _nilsimsa_ratio_as_percent(ins.digest(), mns) * self.points
         
         return 0
-            
+
+
 class Profile(object):
     prefix_len = 3
     
@@ -191,9 +197,10 @@ class Profile(object):
             self.mappings = []
     
     def __str__(self):
-    	return "trapeza.Profile with mappings: {}.".format(self.mappings)
+        return "trapeza.Profile with mappings: {}.".format(self.mappings)
     
-    def __parse_source(self, source):
+    @staticmethod
+    def __parse_source(source):
         maps = []
     
         for record in source.records():
@@ -204,7 +211,7 @@ class Profile(object):
             elif record.values[u"compare"] == u"fuzzy":
                 compare = COMPARE_FUZZY
             else:
-                raise Exception, "Invalid compare type {} in profile.".format(record.values[u"compare"])
+                raise Exception("Invalid compare type {} in profile.".format(record.values[u"compare"]))
         
             maps.append(Mapping(record.values[u"key"],
                                 record.values[u"master-key"],
@@ -217,7 +224,7 @@ class Profile(object):
     def compare_records(self, master, incoming):
         return sum([mapping.compare_records(master, incoming) for mapping in self.mappings])
         
-    def compare_sources(self, master, incoming, cutoff = 0):
+    def compare_sources(self, master, incoming, cutoff=0):
         if isinstance(master, ProcessedSource):
             return self._compare_sources_processed(master, incoming, cutoff)
             
@@ -231,7 +238,7 @@ class Profile(object):
                     
         return results
     
-    def _compare_sources_processed(self, master, incoming, cutoff = 0):
+    def _compare_sources_processed(self, master, incoming, cutoff=0):
         if not master.processed or master.profile not in [self, None]:
             raise Exception("Cannot compare using an unprocessed source or a source processed with the wrong profile.")
             
@@ -249,8 +256,9 @@ class Profile(object):
                         # for Nilsimsa results the "record" is actually a (digest, record) tuple
                         (digest, real_record) = master_record
                         score = results_this_record.get(real_record, 0)
-                        results_this_record[real_record] = score + _nilsimsa_ratio_as_percent(digest, nilsimsa.Nilsimsa(record.values[mapping.key].encode("utf-8"))) * mapping.points
-                    
+                        ns = nilsimsa.Nilsimsa(record.values[mapping.key].encode("utf-8"))
+                        results_this_record[real_record] = score + \
+                            _nilsimsa_ratio_as_percent(digest, ns) * mapping.points
                        
             for each_result_key in results_this_record:
                 if results_this_record[each_result_key] >= cutoff:
@@ -258,5 +266,6 @@ class Profile(object):
         
         return results
                 
+
 def _nilsimsa_ratio_as_percent(digest1, nilsimsa_obj):
     return (nilsimsa_obj.compare(digest1) + 127) / 255.0
