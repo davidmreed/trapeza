@@ -8,9 +8,16 @@
 
 import os
 import formats
+import copy
 
-__all__ = ["Record", "Source", "get_format", "load_source", "sources_consistent", "unify_sources", "write_source"]
+__all__ = ["Record", "Source", "get_format", "load_source", "sources_consistent", "unify_sources", "write_source",
+           "filters"]
 
+filters = {
+    "strip": lambda x: x.strip(),
+    "lower": lambda x: x.lower(),
+    "upper": lambda x: x.upper(),
+}
 
 class Record(object):
     def __init__(self, values, primary_key=None, inputline=None):
@@ -100,6 +107,16 @@ class Source(object):
     
     def drop_column_index(self, column_index):
         self.drop_column(self.__headers[column_index])
+
+    def rename_column(self, column, new_column):
+        if column != self.__primary_key:
+            self.__headers[self.__headers.index(column)] = new_column
+
+            for record in self.__records:
+                record.values[new_column] = record.values[column]
+                del record.values[column]
+        else:
+            raise Exception("Cannot rename the primary column.")
     
     def get_record_with_id(self, key):
         return self.__index.get(key)
@@ -150,6 +167,24 @@ class Source(object):
             return record in self.__records 
 
 
+def apply_column_filters(s, filter_list):
+    for col in s.headers().copy():
+        n = col
+        for f in filter_list:
+            n = filters[f](n)
+
+        s.rename_column(col, n)
+
+def apply_cell_filters(s, filter_list):
+    for r in s.records():
+        for (k, v) in r.values():
+            if k != s.primary_key():
+                n = v
+                for f in filter_list:
+                    n = filters[f](n)
+
+                r.values[k] = n
+
 def get_format(path, default="csv"):
     ext = os.path.splitext(path)[1][1:]
 
@@ -159,18 +194,31 @@ def get_format(path, default="csv"):
     return default
 
 
-def load_source(infile, filetype, sheet_name=None, encoding="utf-8"):
+def load_source(infile, filetype, sheet_name=None, encoding="utf-8", incolumnfilters=None, incellfilters=None):
     if len(formats.importers_for_format(filetype)) == 0:
         raise Exception("No importer available for file {} (type {}).\n".format(infile.name, filetype))
-    
-    return formats.importers_for_format(filetype)[0]().read(infile, filetype, sheet_name, encoding)
+
+    s =  formats.importers_for_format(filetype)[0]().read(infile, filetype, sheet_name, encoding)
+    if incolumnfilters is not None:
+        apply_column_filters(s, incolumnfilters)
+    if incellfilters is not None:
+        apply_cell_filters(s, incellfilters)
+
+    return s
     
 
-def write_source(source, outfile, filetype, sheet_name=None, encoding="utf-8", **kwd):
+def write_source(source, outfile, filetype, sheet_name=None, encoding="utf-8",
+                 outcolumnfilters=None, outcellfilters=None, **kwd):
     if len(formats.importers_for_format(filetype)) == 0:
         raise Exception("No exporter available for format {}.".format(filetype))
+
+    s = copy.deepcopy(source)
+    if outcolumnfilters is not None:
+        apply_column_filters(s, outcolumnfilters)
+    if outcellfilters is not None:
+        apply_column_filters(s, outcellfilters)
         
-    formats.exporters_for_format(filetype)[0]().write(source, outfile, filetype, sheet_name, encoding, **kwd)
+    formats.exporters_for_format(filetype)[0]().write(s, outfile, filetype, sheet_name, encoding, **kwd)
 
 
 def sources_consistent(sources):

@@ -138,6 +138,26 @@ def main():
                         metavar=("COLUMN", "VALUE"),
                         help="Add a column with the name given and pre-fill the supplied value "
                              "(which may be the empty string).")
+    parser.add_argument("--in-column-filter",
+                        choices=trapeza.filters.keys(),
+                        action="append",
+                        nargs=1,
+                        help="Add a filter to by applied to all incoming column headers.")
+    parser.add_argument("--in-cell-filter",
+                        choices=trapeza.filters.keys(),
+                        action="append",
+                        nargs=1,
+                        help="Add a filter to by applied to all incoming cell contents.")
+    parser.add_argument("--out-column-filter",
+                        choices=trapeza.filters.keys(),
+                        action="append",
+                        nargs=1,
+                        help="Add a filter to by applied to all outgoing column headers.")
+    parser.add_argument("--in-column-filter",
+                        choices=trapeza.filters.keys(),
+                        action="append",
+                        nargs=1,
+                        help="Add a filter to by applied to all outgoing cell contents.")
 
     parser.add_argument("--primary-key",
                         help="Set the column name where primary record identifiers are stored. If this column is not "
@@ -182,7 +202,11 @@ def main():
         return 1
 
     for each_file in args.infile:
-        sources.append(load_source(each_file, get_format(each_file.name, args.input_format), args.input_encoding))
+        sources.append(load_source(each_file,
+                                   get_format(each_file.name, args.input_format),
+                                   args.input_encoding,
+                                   args.in_column_filter or None,
+                                   args.in_cell_filter or None))
 
     # If we are ensuring consistency, quit if the files don't have the same column-set.
     # If not, unify them by adding missing columns.
@@ -242,7 +266,12 @@ def main():
 
     try:
         output_format = get_format(args.output.name, args.output_format)
-        write_source(output, args.output, output_format, encoding=args.output_encoding)
+        write_source(output,
+                     args.output,
+                     output_format,
+                     encoding=args.output_encoding,
+                     outcolumnfilters=args.out_header_filter or None,
+                     outcellfilters=args.out_cell_filter or None)
     except Exception as e:
         sys.stderr.write("{}: an error occured while writing output: {}\n".format(sys.argv[0], e))
         return 1
