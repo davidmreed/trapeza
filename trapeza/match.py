@@ -6,8 +6,6 @@
 #  This file is available under the terms of the MIT License.
 #
 
-import nilsimsa
-
 __all__ = ["COMPARE_EXACT", "COMPARE_PREFIX", "COMPARE_FUZZY", "ProcessedSource", "Result", "Mapping", "Profile"]
 
 COMPARE_EXACT = u"exact"
@@ -21,9 +19,7 @@ class AdditiveDict(dict):
 
 
 class ProcessedSource(object):
-    
-    NILSIMSA_DISTANCE_BASE = nilsimsa.Nilsimsa(u"b4se str1ng 4 c0mparison with NILSIMSA hash!".encode("utf-8")).digest()
-    
+
     def __init__(self, source, master=True, profile=None):
         self.source = source
         self.master = master
@@ -178,10 +174,9 @@ class Mapping(object):
                     or (incoming_value.startswith(master_value) and len(master_value) >= self.prefix_len):
                 return self.points
         elif self.compare == COMPARE_FUZZY:
-            mns = nilsimsa.Nilsimsa(master_value.encode("utf-8"))
-            ins = nilsimsa.Nilsimsa(incoming_value.encode("utf-8"))
-            return _nilsimsa_ratio_as_percent(ins.digest(), mns) * self.points
-        
+            if _fuzzy_filter(master_value) == fuzzy_filter(incoming_value):
+                return self.points
+
         return 0
 
 
@@ -249,17 +244,9 @@ class Profile(object):
             
             for mapping in self.mappings:
                 for master_record in master.matches(mapping, record):
-                    if mapping.compare == COMPARE_EXACT or mapping.compare == COMPARE_PREFIX:
-                        score = results_this_record.get(master_record, 0)
-                        results_this_record[master_record] = score + mapping.points
-                    else:
-                        # for Nilsimsa results the "record" is actually a (digest, record) tuple
-                        (digest, real_record) = master_record
-                        score = results_this_record.get(real_record, 0)
-                        ns = nilsimsa.Nilsimsa(record.values[mapping.key].encode("utf-8"))
-                        results_this_record[real_record] = score + \
-                            _nilsimsa_ratio_as_percent(digest, ns) * mapping.points
-                       
+                    score = results_this_record.get(master_record, 0)
+                    results_this_record[master_record] = score + mapping.points
+
             for each_result_key in results_this_record:
                 if results_this_record[each_result_key] >= cutoff:
                     results.append(Result(record, each_result_key, results_this_record[each_result_key]))
@@ -267,5 +254,5 @@ class Profile(object):
         return results
                 
 
-def _nilsimsa_ratio_as_percent(digest1, nilsimsa_obj):
-    return (nilsimsa_obj.compare(digest1) + 127) / 255.0
+def _fuzzy_filter(st):
+    return st.lower().translate(None, " \n\r\t,.<>/\|!?@#$%^&*()-_=+[]{}`~")

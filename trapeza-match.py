@@ -17,7 +17,7 @@
 #              strip is true if whitespace and quotes ought to be removed from both comparands
 #              compare is one of 'exact' (equality);
 #                                'prefix' (either value is a prefix of the other);
-#                                'fuzzy' (assign a percentage of available points based on similarity).
+#                                'fuzzy' (match on filtered, simplified values).
 
 import argparse
 import sys
